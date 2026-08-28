@@ -1,5 +1,13 @@
-# Task 1: Security utility stubs — JWT and password helpers
+# Task 3: Security utilities — password hashing and JWT token management
+from datetime import datetime, timedelta, timezone
 from typing import Optional
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
+from config import settings
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def hash_password(plain_password: str) -> str:
@@ -11,7 +19,7 @@ def hash_password(plain_password: str) -> str:
     Returns:
         A bcrypt hash string safe to store in the database.
     """
-    pass
+    return pwd_context.hash(plain_password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -24,37 +32,37 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     Returns:
         True if the password matches, False otherwise.
     """
-    pass
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def create_access_token(data: dict) -> str:
-    """Create a short-lived JWT access token.
-
-    Encodes *data* with the configured JWT_SECRET and an expiry derived from
-    ``settings.JWT_EXPIRE_MINUTES``.
+    """Create a short-lived JWT access token signed with JWT_SECRET.
 
     Args:
-        data: Payload to encode (must include ``sub`` — the user's id or email).
+        data: Payload to encode — must include ``sub`` (user id as string).
 
     Returns:
         Signed JWT string.
     """
-    pass
+    payload = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    payload.update({"exp": expire, "type": "access"})
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
 def create_refresh_token(data: dict) -> str:
-    """Create a long-lived JWT refresh token.
-
-    Encodes *data* with the configured JWT_REFRESH_SECRET and an expiry
-    derived from ``settings.JWT_REFRESH_EXPIRE_DAYS``.
+    """Create a long-lived JWT refresh token signed with JWT_REFRESH_SECRET.
 
     Args:
-        data: Payload to encode (must include ``sub``).
+        data: Payload to encode — must include ``sub`` (user id as string).
 
     Returns:
         Signed JWT string.
     """
-    pass
+    payload = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
+    payload.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(payload, settings.JWT_REFRESH_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_access_token(token: str) -> Optional[dict]:
@@ -64,9 +72,17 @@ def decode_access_token(token: str) -> Optional[dict]:
         token: JWT string from the Authorization header.
 
     Returns:
-        The decoded payload dict, or None if the token is invalid / expired.
+        The decoded payload dict, or None if invalid / expired / wrong type.
     """
-    pass
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
+        if payload.get("type") != "access":
+            return None
+        return payload
+    except JWTError:
+        return None
 
 
 def decode_refresh_token(token: str) -> Optional[dict]:
@@ -76,6 +92,14 @@ def decode_refresh_token(token: str) -> Optional[dict]:
         token: JWT string from the refresh request body.
 
     Returns:
-        The decoded payload dict, or None if the token is invalid / expired.
+        The decoded payload dict, or None if invalid / expired / wrong type.
     """
-    pass
+    try:
+        payload = jwt.decode(
+            token, settings.JWT_REFRESH_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
+        if payload.get("type") != "refresh":
+            return None
+        return payload
+    except JWTError:
+        return None

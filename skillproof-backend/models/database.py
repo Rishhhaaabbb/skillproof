@@ -18,6 +18,7 @@ from sqlalchemy import (
     create_engine,
 )
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from config import settings
 
@@ -27,13 +28,47 @@ Base = declarative_base()
 # Engine / Session factory
 # ---------------------------------------------------------------------------
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    # SQLite-only kwarg guard — safe to keep for Postgres
-    connect_args={} if not settings.DATABASE_URL.startswith("sqlite") else {"check_same_thread": False},
-)
 
+def _build_engine():
+    """Build a SQLAlchemy engine appropriate for the configured database URL.
+
+    Supabase PgBouncer (port 6543 / pgbouncer=true) requires NullPool because
+    PgBouncer manages its own connection pool — SQLAlchemy must not add another
+    layer on top.  Direct Postgres connections (port 5432) use a small standard
+    pool sized for Supabase's free-tier connection limit.
+
+    The ``pgbouncer=true`` query parameter is a Supabase-only hint that psycopg2
+    does not understand — it is stripped from the URL before the engine is
+    created to prevent a ``ProgrammingError: invalid connection option`` error.
+    """
+    import re
+
+    raw_url = settings.DATABASE_URL
+    is_pgbouncer = "pgbouncer=true" in raw_url or ":6543" in raw_url
+
+    # Strip ?pgbouncer=true (or &pgbouncer=true) — psycopg2 rejects unknown params
+    clean_url = re.sub(r"[?&]pgbouncer=true", "", raw_url)
+    # Remove a trailing bare "?" left over if it was the only query param
+    clean_url = clean_url.rstrip("?")
+
+    if is_pgbouncer:
+        return create_engine(
+            clean_url,
+            poolclass=NullPool,
+            pool_pre_ping=True,
+            echo=False,
+        )
+    return create_engine(
+        clean_url,
+        pool_size=3,
+        max_overflow=2,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        echo=False,
+    )
+
+
+engine = _build_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

@@ -1,21 +1,30 @@
-# Task 2: Auth dependencies — FastAPI dependency injection helpers
+# Task 3: FastAPI auth dependencies — Bearer token validation
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
-from models.database import get_db, User
+from models.database import SessionLocal, User
 from utils.security import decode_access_token
 
 security = HTTPBearer()
+
+
+def get_db():
+    """Yield a database session and close it when done."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
-    """FastAPI dependency that validates the Bearer token and returns the User.
+    """Validate Bearer token and return the authenticated User.
 
-    Raises HTTP 401 if the token is missing, expired, or invalid.
+    Raises HTTP 401 on missing, expired, or invalid tokens.
     Raises HTTP 401 if the user referenced in the token no longer exists.
 
     Args:
@@ -25,23 +34,53 @@ def get_current_user(
     Returns:
         The authenticated User ORM instance.
     """
-    pass
+    payload = decode_access_token(credentials.credentials)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired access token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user_id: str | None = payload.get("sub")
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token missing subject",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.get(User, int(user_id))
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 
 def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
+    credentials: HTTPAuthorizationCredentials = Depends(
+        HTTPBearer(auto_error=False)
+    ),
     db: Session = Depends(get_db),
 ) -> User | None:
-    """Like :func:`get_current_user` but returns None instead of raising on missing token.
+    """Like get_current_user but returns None instead of raising when no token is present.
 
-    Used for routes that are accessible both publicly (anonymous) and
-    authenticated (personalised).
+    Used for routes that are accessible both publicly and when authenticated.
 
     Args:
-        credentials: Optional injected credentials (None when no Bearer header).
+        credentials: Optional — None when no Authorization header is present.
         db:          Injected database session.
 
     Returns:
         The authenticated User ORM instance, or None if unauthenticated.
     """
-    pass
+    if credentials is None:
+        return None
+    payload = decode_access_token(credentials.credentials)
+    if payload is None:
+        return None
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+    return db.get(User, int(user_id))
