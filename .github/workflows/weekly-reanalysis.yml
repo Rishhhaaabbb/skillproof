@@ -1,0 +1,23 @@
+name: Weekly Re-analysis
+
+on:
+  schedule:
+    # Every Monday at 03:00 UTC
+    - cron: "0 3 * * 1"
+  workflow_dispatch: {}  # Allow manual trigger from GitHub UI
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call backend scheduler endpoint
+        run: |
+          curl -X POST \
+            "${{ secrets.BACKEND_URL }}/api/internal/run-weekly-reanalysis" \
+            -H "X-Scheduler-Secret: ${{ secrets.SCHEDULER_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail \
+            --silent \
+            --show-error
+        # BACKEND_URL and SCHEDULER_SECRET must be set as GitHub Actions secrets
+        # BACKEND_URL example: https://skillproof-api.onrender.com

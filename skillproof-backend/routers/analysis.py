@@ -12,7 +12,7 @@ GET  /api/analysis/streaks  — returns streak summary + milestones
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -259,3 +259,32 @@ def get_streaks(
     """Return streak summary and earned milestones."""
     from services.streak_service import StreakService
     return StreakService().get_streak_summary(db, user.id)
+
+
+@router.get("/export/pdf")
+def export_pdf(
+    target_role_id: Optional[int] = Query(default=None),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate and download a PDF verification report.
+
+    Optional target_role_id includes role-specific gap analysis and verdict.
+    Returns PDF bytes with Content-Disposition: attachment header.
+    """
+    from fastapi.responses import Response
+    from services.pdf_service import PDFService
+
+    svc = PDFService()
+    try:
+        report_data = svc.assemble_report_data(db, user.id, target_role_id)
+        pdf_bytes = svc.generate_report(report_data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {exc}")
+
+    filename = f"skillproof-{user.github_username or user.id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

@@ -389,3 +389,25 @@ def get_tasks(
         }
         for t in tasks
     ]
+
+
+@router.get("/{role_id}/comparison")
+def get_comparison(
+    role_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return the latest before/after comparison for a target role."""
+    role = db.query(TargetRole).filter(
+        TargetRole.id == role_id, TargetRole.user_id == user.id
+    ).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Target role not found")
+    from services.comparison_service import ComparisonService
+    result = ComparisonService().get_latest_comparison(db, user.id, role_id)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail="No comparison available yet. Complete a task and re-analyze to see your progress.",
+        )
+    return result
