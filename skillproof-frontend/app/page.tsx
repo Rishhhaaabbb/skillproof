@@ -1,11 +1,16 @@
-import { redirect } from 'next/navigation';
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { isAuthenticated } from '@/lib/auth'
 
-/**
- * Root page — redirects authenticated users to /dashboard,
- * unauthenticated users to /login.
- * Full auth check implemented in Task 3.
- */
 export default function RootPage() {
-  // TODO (Task 3): Check session/cookie and redirect conditionally
-  redirect('/dashboard');
+  const router = useRouter()
+  useEffect(() => {
+    router.replace(isAuthenticated() ? '/dashboard' : '/login')
+  }, [router])
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  )
 }
