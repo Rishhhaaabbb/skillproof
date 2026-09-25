@@ -82,7 +82,8 @@ class AnalysisOut(BaseModel):
     confidence_level: Optional[str] = None
     breakdown: Optional[Dict[str, Any]] = None
     features: Optional[Dict[str, Any]] = None
-    flags: Optional[List[str]] = None
+    # flags is stored as {"green_flags": [...], "red_flags": [...]}
+    flags: Optional[Dict[str, List[str]]] = None
     heatmap_data: Optional[Dict[str, Any]] = None
     created_at: datetime
 

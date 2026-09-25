@@ -24,10 +24,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,  # locked to explicit origins via CORS_ORIGINS env var
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Scheduler-Secret"],
+    max_age=600,  # preflight cache: 10 minutes
 )
 
 # Import and include all routers
@@ -59,3 +60,9 @@ def health_check():
         "version": "1.0.0",
         "service": "SkillProof API",
     }
+
+
+@app.get("/health")
+def render_health():
+    """Render.com health-check endpoint — must return 200 for the service to stay up."""
+    return {"status": "ok"}

@@ -29,8 +29,14 @@ class Settings:
     # Scheduler
     SCHEDULER_SECRET: str = os.getenv("SCHEDULER_SECRET", "")
 
-    # CORS
-    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    # CORS — in production set this to your exact Vercel URL, e.g.:
+    # CORS_ORIGINS=https://skillproof.vercel.app
+    # Multiple origins: CORS_ORIGINS=https://skillproof.vercel.app,https://www.skillproof.app
+    CORS_ORIGINS: list = [
+        o.strip()
+        for o in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+        if o.strip()
+    ]
 
     # App limits
     MAX_TARGET_ROLES_PER_USER: int = 3
