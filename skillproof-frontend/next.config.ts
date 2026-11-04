@@ -49,10 +49,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  // Silence the next-pwa webpack warnings in newer Next.js versions
-  webpack: (config) => {
-    return config;
-  },
+  turbopack: {},
 };
 
 export default withPWA(nextConfig);

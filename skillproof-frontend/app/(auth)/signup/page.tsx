@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Loader2, AlertCircle, Eye, EyeOff, ArrowRight, Github } from 'lucide-react'
+import { Loader2, AlertCircle, Eye, EyeOff, ArrowRight, GitBranch } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -147,7 +147,7 @@ export default function SignupPage() {
             >
               <div className="relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                  <Github className="h-4 w-4" />
+                  <GitBranch className="h-4 w-4" />
                 </div>
                 <input
                   id="github_username"
