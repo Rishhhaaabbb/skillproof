@@ -191,7 +191,7 @@ class GitHubFetcher:
     def _fetch_commits(
         self, username: str, repos: List[Dict[str, Any]]
     ) -> tuple[List[Dict[str, Any]], int]:
-        since = datetime.now(timezone.utc) - timedelta(days=180)
+        since = datetime.now(timezone.utc) - timedelta(days=365)
         all_commits: List[Dict[str, Any]] = []
         repos_failed = 0
 

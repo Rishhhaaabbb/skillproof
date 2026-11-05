@@ -3,16 +3,16 @@
 Hand-set weighted scorer that maps the 28 canonical features onto a [0, 100]
 Technical Proficiency Rating score.
 
-Five sub-dimensions and weights:
-    commit_quality   0.25
-    pr_collaboration 0.25
-    code_review      0.20
-    consistency      0.20
-    repo_depth       0.10
+Five sub-dimensions and weights (v2 — rebalanced):
+    commit_quality   0.35  ↑ core signal: how much and how well they commit
+    consistency      0.25  ↑ sustained effort over time
+    repo_depth       0.20  ↑ breadth of technical work
+    pr_collaboration 0.12  ↓ optional for solo developers
+    code_review      0.08  ↓ optional for solo developers
 
-The weights are validated against the labeled dataset in evaluation/run_validation.py.
-The stretch goal (Task 18) replaces these with learned weights from a logistic
-regression trained on the same dataset.
+Rationale: PR collaboration and code review are only visible on PUBLIC team repos.
+A strong solo developer or open-source contributor should not be penalised for
+preferring direct commits over pull requests on their own projects.
 """
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ from typing import Any, Dict, List, Tuple
 from ml.feature_schema import FEATURE_NAMES
 
 _WEIGHTS = {
-    "commit_quality":   0.25,
-    "pr_collaboration": 0.25,
-    "code_review":      0.20,
-    "consistency":      0.20,
-    "repo_depth":       0.10,
+    "commit_quality":   0.35,
+    "consistency":      0.25,
+    "repo_depth":       0.20,
+    "pr_collaboration": 0.12,
+    "code_review":      0.08,
 }
 
 
@@ -274,27 +274,22 @@ class TPRScorer:
         return min(100.0, score)
 
     def _score_repo_depth(self, f: Dict[str, float]) -> float:
+        # Stars intentionally excluded — popularity is not a skill signal.
+        # Breadth is measured by languages, documentation (README), and
+        # self-described project topics — all intrinsic to the work itself.
         score = 0.0
 
         langs = f.get("distinct_languages_count", 0.0)
         if langs >= 5:
-            score += 30
+            score += 40
         elif langs >= 3:
-            score += 20
+            score += 30
         elif langs >= 2:
-            score += 15
+            score += 20
         elif langs >= 1:
             score += 10
 
-        stars = f.get("avg_repo_stars", 0.0)
-        if stars >= 100:
-            score += 30
-        elif stars >= 10:
-            score += 20
-        elif stars >= 1:
-            score += 10
-
-        score += f.get("pct_repos_with_readme", 0.0) * 20
-        score += f.get("pct_repos_with_topics", 0.0) * 20
+        score += f.get("pct_repos_with_readme", 0.0) * 30
+        score += f.get("pct_repos_with_topics", 0.0) * 30
 
         return min(100.0, score)
