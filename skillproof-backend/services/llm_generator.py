@@ -5,8 +5,9 @@ Single entry point for all LLM calls in SkillProof.
 Features:
 - Mock mode (USE_LLM_MOCK=true) returns deterministic JSON-safe responses
   without calling the API — preserves quota during development.
-- Primary model: GEMINI_MODEL (gemini-3.7-flash)
+- Primary model: GEMINI_MODEL (gemini-2.5-flash)
 - Fallback model: GEMINI_FALLBACK_MODEL on quota/rate-limit errors
+- Uses google-genai SDK (v2+), replacing deprecated google-generativeai
 - All JSON responses strip markdown fences before parsing
 - Structured error types: quota_exceeded, invalid_json, unavailable
 """
@@ -45,50 +46,67 @@ class LLMResult:
 
 
 class LLMGenerator:
-    """Centralised wrapper for all Gemini API calls."""
+    """Centralised wrapper for all Gemini API calls using google-genai SDK."""
 
     def __init__(self) -> None:
-        self._primary_model = None
-        self._fallback_model = None
+        self._client = None
         if not settings.USE_LLM_MOCK:
             self._init_gemini()
 
     def _init_gemini(self) -> None:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=settings.GEMINI_API_KEY)
-            self._primary_model = genai.GenerativeModel(settings.GEMINI_MODEL)
-            self._fallback_model = genai.GenerativeModel(settings.GEMINI_FALLBACK_MODEL)
+            from google import genai
+            self._client = genai.Client(api_key=settings.GEMINI_API_KEY)
             logger.info("Gemini initialised — primary: %s", settings.GEMINI_MODEL)
         except Exception as exc:
             logger.warning("Failed to initialise Gemini: %s", exc)
+
+    def _call_model(self, model_name: str, prompt: str) -> str:
+        """Call a specific model and return the response text. Raises on error."""
+        from google.genai import types as genai_types
+        response = self._client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(
+                temperature=0.4,
+                max_output_tokens=2048,
+            ),
+        )
+        return response.text
 
     def generate(self, prompt: str, system_instruction: Optional[str] = None) -> LLMResult:
         """Send a prompt and return an LLMResult with the response text."""
         if settings.USE_LLM_MOCK:
             return LLMResult(success=True, text=self._mock_response(prompt))
 
+        if self._client is None:
+            return LLMResult(
+                success=False,
+                error_type="unavailable",
+                error_message="Gemini client not initialised — check GEMINI_API_KEY.",
+            )
+
         full_prompt = f"{system_instruction}\n\n{prompt}" if system_instruction else prompt
 
-        for model, label in [(self._primary_model, "primary"), (self._fallback_model, "fallback")]:
-            if model is None:
-                continue
+        models = [settings.GEMINI_MODEL, settings.GEMINI_FALLBACK_MODEL]
+        for i, model_name in enumerate(models):
+            label = "primary" if i == 0 else "fallback"
             try:
-                response = model.generate_content(full_prompt)
-                return LLMResult(success=True, text=response.text)
+                text = self._call_model(model_name, full_prompt)
+                return LLMResult(success=True, text=text)
             except Exception as exc:
                 exc_str = str(exc).lower()
-                if "quota" in exc_str or "429" in exc_str or "resource_exhausted" in exc_str:
-                    logger.warning("Quota exceeded on %s model, trying fallback", label)
+                if any(k in exc_str for k in ("quota", "429", "resource_exhausted")):
+                    logger.warning("Quota exceeded on %s model (%s), trying fallback", label, model_name)
                     if label == "fallback":
                         return LLMResult(
                             success=False,
                             error_type="quota_exceeded",
                             error_message="Both Gemini models are quota-limited. Try again later.",
                         )
-                    time.sleep(2)
+                    time.sleep(5)  # wait 5s before trying fallback
                     continue
-                logger.error("Gemini %s model error: %s", label, exc)
+                logger.error("Gemini %s model error (%s): %s", label, model_name, exc)
                 return LLMResult(
                     success=False,
                     error_type="unavailable",
@@ -127,8 +145,11 @@ class LLMGenerator:
                 error_message=f"Could not parse LLM response as JSON: {exc}",
             )
 
+    # -------------------------------------------------------------------------
+    # Mock helpers
+    # -------------------------------------------------------------------------
+
     def _mock_response(self, prompt: str) -> str:
-        """Return a plain-text mock response based on prompt type."""
         prompt_lower = prompt.lower()
         if "skeptic" in prompt_lower:
             return "Mock skeptic case: The candidate shows limited PR activity and sparse commit history, suggesting they may not yet be production-ready for this role."
@@ -141,10 +162,9 @@ class LLMGenerator:
         return "Mock LLM response: Analysis complete. Please enable real LLM mode for production use."
 
     def _mock_json_response(self, prompt: str) -> str:
-        """Return a JSON-safe mock response matching expected schema by prompt type."""
         prompt_lower = prompt.lower()
 
-        if "skeptic" in prompt_lower or "advocate" in prompt_lower or "synthesize" in prompt_lower or "verdict" in prompt_lower:
+        if any(k in prompt_lower for k in ("skeptic", "advocate", "synthesize", "verdict")):
             return json.dumps({
                 "final_verdict": "Mock verdict: Candidate shows moderate readiness with clear areas for growth.",
                 "confidence": 55,
@@ -152,7 +172,7 @@ class LLMGenerator:
                 "surviving_advocate_points": ["Multi-language experience", "Active recent commits"],
             })
 
-        if "scenario" in prompt_lower or "question" in prompt_lower or "task" in prompt_lower:
+        if any(k in prompt_lower for k in ("scenario", "question", "task")):
             return json.dumps({
                 "target_repo": "mock-repo",
                 "scenario": "Describe how you approached error handling in one of your Python projects.",
@@ -160,14 +180,14 @@ class LLMGenerator:
                 "difficulty": "medium",
             })
 
-        if "quality_score" in prompt_lower or "evaluate" in prompt_lower or "answer" in prompt_lower:
+        if any(k in prompt_lower for k in ("quality_score", "evaluate", "answer")):
             return json.dumps({
                 "quality_score": 65,
                 "reasoning": "Mock evaluation: Answer demonstrates basic understanding but lacks specific examples.",
                 "pass_fail": "pass",
             })
 
-        if "matched_requirements" in prompt_lower or "gap" in prompt_lower or "jd" in prompt_lower or "job description" in prompt_lower:
+        if any(k in prompt_lower for k in ("matched_requirements", "gap", "jd", "job description")):
             return json.dumps({
                 "matched_requirements": [
                     {"requirement": "Python development", "evidence_citation": "mock-python-repo"}
@@ -180,7 +200,7 @@ class LLMGenerator:
                 "readiness_estimate": 45,
             })
 
-        if "task" in prompt_lower or "missing" in prompt_lower or "verification" in prompt_lower:
+        if any(k in prompt_lower for k in ("task", "missing", "verification")):
             return json.dumps({
                 "target_repo": "mock-repo",
                 "task_description": "Add unit tests covering at least 3 core functions in your main module.",

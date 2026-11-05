@@ -68,7 +68,7 @@ export default function SkillRadarChart({ breakdown, isLoading }: SkillRadarChar
                 borderRadius: '8px',
                 fontSize: '12px',
               }}
-              formatter={(v: number) => [`${v}/100`, 'Score']}
+              formatter={(v: any) => [`${v ?? 0}/100`, 'Score']}
             />
             <Radar
               name="Score"

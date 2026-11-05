@@ -107,7 +107,7 @@ export default function DashboardPage() {
   }))
 
   return (
-    <div className="flex flex-col gap-6 p-6 pb-10">
+    <div className="flex h-full flex-col gap-6 overflow-y-auto p-6 pb-10">
       {/* ── Header ── */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -230,7 +230,7 @@ export default function DashboardPage() {
                       borderRadius: '8px',
                       fontSize: '12px',
                     }}
-                    formatter={(v: number) => [`${v}/100`, 'TPR Score']}
+                    formatter={(v: any) => [`${v ?? 0}/100`, 'TPR Score']}
                   />
                   <Line
                     type="monotone"

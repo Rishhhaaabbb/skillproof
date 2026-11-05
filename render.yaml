@@ -25,10 +25,10 @@ services:
         sync: false
 
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3-flash-preview
 
       - key: GEMINI_FALLBACK_MODEL
-        value: gemini-2.5-flash-lite
+        value: gemini-3.5-flash-lite
 
       - key: DATABASE_URL
         sync: false           # paste your Supabase PostgreSQL URL

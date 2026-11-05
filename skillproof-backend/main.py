@@ -41,6 +41,7 @@ from routers.share import router as share_router
 from routers.public_profile import router as public_profile_router
 from routers.scheduler import router as scheduler_router
 from routers.jobs import router as jobs_router
+from routers.settings import router as settings_router
 
 app.include_router(auth_router)
 app.include_router(analysis_router)
@@ -51,6 +52,7 @@ app.include_router(share_router)
 app.include_router(public_profile_router)
 app.include_router(scheduler_router)
 app.include_router(jobs_router)
+app.include_router(settings_router)
 
 
 @app.get("/")
