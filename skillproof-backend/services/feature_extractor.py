@@ -159,31 +159,32 @@ class FeatureExtractor:
     def _commit_features(self, commits: List[Dict[str, Any]]) -> Dict[str, float]:
         now = _now_utc()
         cutoff_90 = now - timedelta(days=90)
-        cutoff_365 = now - timedelta(days=365)
 
+        # 90-day window for recent-activity metrics
         commits_90: List[Dict] = []
-        commits_365: List[Dict] = []
         for c in commits:
             dt = _to_aware(c.get("date"))
             if dt is None:
                 continue
-            if dt >= cutoff_365:
-                commits_365.append(c)
             if dt >= cutoff_90:
                 commits_90.append(c)
 
+        # All fetched commits represent the developer's FULL work history
+        # (fetcher has no time window — caps at 500 total, 50 per repo).
+        active_days_all = len({
+            _to_aware(c["date"]).date()
+            for c in commits
+            if _to_aware(c.get("date")) is not None
+        })
         active_days_90 = len({
             _to_aware(c["date"]).date()
             for c in commits_90
             if _to_aware(c.get("date")) is not None
         })
-        active_days_365 = len({
-            _to_aware(c["date"]).date()
-            for c in commits_365
-            if _to_aware(c.get("date")) is not None
-        })
 
-        total_365 = float(len(commits_365))
+        # total_commits_365d key kept for schema compatibility but now
+        # holds ALL-TIME commit count (developer's full journey).
+        total_all = float(len(commits))
         total_90 = float(len(commits_90))
 
         all_messages = [c.get("message") or "" for c in commits]
@@ -205,10 +206,10 @@ class FeatureExtractor:
 
         return {
             "total_commits_90d": total_90,
-            "total_commits_365d": total_365,
+            "total_commits_365d": total_all,
             "active_days_90d": float(active_days_90),
-            "active_days_365d": float(active_days_365),
-            "avg_commits_per_active_day": total_365 / max(active_days_365, 1),
+            "active_days_365d": float(active_days_all),
+            "avg_commits_per_active_day": total_all / max(active_days_all, 1),
             "avg_commit_message_length": avg_msg_len,
             "pct_commits_with_body": pct_with_body,
             "pct_commits_conventional_format": pct_conventional,

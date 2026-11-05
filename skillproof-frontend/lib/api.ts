@@ -26,7 +26,7 @@ const axiosInstance: AxiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+      const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -72,7 +72,7 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    const refreshToken = sessionStorage.getItem(REFRESH_TOKEN_KEY);
     if (!refreshToken) {
       clearTokensAndRedirect();
       return Promise.reject(error);
@@ -101,7 +101,7 @@ axiosInstance.interceptors.response.use(
       );
 
       const newAccessToken: string = data.access_token;
-      localStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
+      sessionStorage.setItem(ACCESS_TOKEN_KEY, newAccessToken);
 
       axiosInstance.defaults.headers.common['Authorization'] =
         `Bearer ${newAccessToken}`;
@@ -125,8 +125,8 @@ axiosInstance.interceptors.response.use(
 
 function clearTokensAndRedirect() {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     window.location.href = '/login';
   }
 }

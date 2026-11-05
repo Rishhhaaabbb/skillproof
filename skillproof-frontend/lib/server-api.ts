@@ -1,5 +1,5 @@
 // Server-side fetch helper for Server Components (public endpoints only)
-// Does NOT attach auth tokens — localStorage not available server-side
+// Does NOT attach auth tokens — sessionStorage not available server-side
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 

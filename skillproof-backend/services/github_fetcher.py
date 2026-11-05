@@ -191,7 +191,8 @@ class GitHubFetcher:
     def _fetch_commits(
         self, username: str, repos: List[Dict[str, Any]]
     ) -> tuple[List[Dict[str, Any]], int]:
-        since = datetime.now(timezone.utc) - timedelta(days=365)
+        # No time window — fetch the developer's FULL commit history.
+        # Caps protect against excessive API calls (500 total, 50 per repo).
         all_commits: List[Dict[str, Any]] = []
         repos_failed = 0
 
@@ -204,7 +205,7 @@ class GitHubFetcher:
 
             try:
                 repo = self._client.get_repo(full_name)
-                commit_list = repo.get_commits(author=username, since=since)
+                commit_list = repo.get_commits(author=username)
                 count = 0
                 for commit in commit_list:
                     if count >= _COMMITS_PER_REPO_CAP:
