@@ -70,11 +70,11 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://skillproof-api.onrender.com/api/:path*"
+      "destination": "https://skillproof-2gu3.onrender.com/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "https://skillproof-api.onrender.com/auth/:path*"
+      "destination": "https://skillproof-2gu3.onrender.com/auth/:path*"
     }
   ],
   "redirects": [
