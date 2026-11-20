@@ -76,17 +76,5 @@
       "destination": "https://skillproof-2gu3.onrender.com/auth/:path*"
     }
   ],
-  "redirects": [
-    {
-      "source": "/",
-      "has": [
-        {
-          "type": "cookie",
-          "key": "skillproof_access_token"
-        }
-      ],
-      "destination": "/dashboard",
-      "permanent": false
-    }
-  ]
+  "redirects": []
 }
