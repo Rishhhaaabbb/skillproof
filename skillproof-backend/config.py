@@ -40,7 +40,7 @@ class Settings:
 
     # App limits
     MAX_TARGET_ROLES_PER_USER: int = 3
-    CACHE_TTL_SECONDS: int = 900  # 15 minutes
+    CACHE_TTL_SECONDS: int = 1800  # 30 minutes — avoids re-fetch on re-analyze
 
 
 settings = Settings()
